@@ -1,0 +1,233 @@
+﻿testdb1
+
+on server:
+mytestd.database.windows.net
+mytestdadmin // mytestdpassword0!
+
+
+
+Add automation account
+
+testaccount1
+resource group: rg1
+in Japan East
+
+
+https://docs.microsoft.com/en-au/azure/automation/automation-offering-get-started#authentication-planning
+a runbook is the core of getting stuff done. runbooks are basically programming, and you can write runbooks in powershell, PS Graphical Workflow, source them from Runbook Gallery.
+
+Workflow calls some windows thing in the background so it's slower.
+Workflow lets you do parallel execution, and maybe checkpointing/async stuff.
+
+
+
+
+Storage Account:
+
+ultimateamendablelynx (must be globally unique)
+RG = WebsiteStorage
+
+create a container inside the storage account, upload file into it: "websitedata"
+
+
+access keys, store the account name and access key/s
+
+ultimateamendablelynx // 8BKzjhfpks9oJcO5wm+99YGiGF8Yx6Wf4Irvqn41tFbiFbxBSKiTxgPs/LLUN0uZf5aJsmZFrNOst4AwirM7+g==
+ultimateamendablelynx // jkmN+1/9fe+1rksLrccG/+nAL3RhN7deAIzJeBQPVTjSkbS9BLEVfOIuvGXuWGxp10m9fBH09eX7WkEzHhI3Fg==
+
+DefaultEndpointsProtocol=https;AccountName=ultimateamendablelynx;AccountKey=8BKzjhfpks9oJcO5wm+99YGiGF8Yx6Wf4Irvqn41tFbiFbxBSKiTxgPs/LLUN0uZf5aJsmZFrNOst4AwirM7+g==;EndpointSuffix=core.windows.net
+
+
+ultimateamendablelynx
+8BKzjhfpks9oJcO5wm+99YGiGF8Yx6Wf4Irvqn41tFbiFbxBSKiTxgPs/LLUN0uZf5aJsmZFrNOst4AwirM7+g==
+websitedata
+SimpleWebsite.zip
+
+WebServer1
+bdesmond1 // Bdesmond1234
+WebServer1-nsg
+
+
+
+
+Azure Resource Manager
+
+ARM Templates: they're JSON, plain source, version controllable, supported in powershell
+
+
+Resource Groups: abstract grouping, use them for your own admin uses. Can put a service in an RG, or maybe all resources of one type in an RG (webservers, DB, etc).
+
+RGs can have tags, they're freeform. Good for admin and billing, etc.
+
+Resources can belong to only one RG, RGs can't be nested.
+
+Resources are typed, and each type has one or more providers. This is much like Puppet's type+provider model.
+
+
+
+sql server name: sqladvwrkslxfhcy3djapia.database.windows.net
+
+
+
+
+
+==================================================================================================================================
+DAY 2
+==================================================================================================================================
+
+AA Integration features: on prem, PS modules, Azure duh, webhooks, other Virt platforms, other clouds
+
+Uses: scaling, responding to events, automation/simpler provisioning
+
+Where from: PS Gallery, upload yourself via portal, community modules
+You can add a foo_Automation.js file, to pull credentials from your AA Account
+
+AA Run-As account, can add one during AA account creation
+
+Auth from PS, first thing you do in session
+
+
+
+You can add monitoring responses, to run a playbook based on a VM alert being triggered
+
+Can be used for example for: Azure function (serverless code), pump data in from one source, push to Azure SQL Server, then push to Power BI. Nice thing about Functions is that it's pay-for-use, no dedicated VM always running.
+
+VM -> DC Metrics -> Add Rule: CPU greater than 95: email someone, call a webhook, take an action (runbook). Easy way to do a runbook without needing a webhook.
+
+
+
+Webhooks: run a runbook from a web request, can take params. URL is only shown once for security (aehhhh).
+
+
+
+
+## Exercise
+
+
+
+Subscription ID (your Azure Pass): 51852038-ac4a-4f2e-b4e6-a574b25bc5d5
+
+
+
+Webhook:
+https://s8events.azure-automation.net/webhooks?token=gVqnVy9jgNgj5tgYe0ikAqKHM3Cl4Ec9CEQUPyLP7Fg%3d
+
+WebAppVM: http://13.76.87.227
+
+
+
+Log Analytics workspace
+
+workspace name (global unique): bdesmond20171011
+in the Australia Southeast region
+
+
+
+## OMS - Ops Management Suite
+
+Comes with a lot of stuff out of the box, some things will require extra stuff installed into/via the agent.
+
+Can do analytics with data piped into OMS. Splunk-ish search for logging that's pushed to OMS (like event viewer on a single machine, but better and centralised).
+
+OMS portal is separate to the Azure portal, but there are some connections.
+
+Linking OMS to your Azure portal enables features in your Azure Account, eg. Update Management, Change tracking, Inventory
+
+Out of the box: lots of things in the Solutions Gallery, common admin tasks and reporting needs.
+Connected Sources: connect your windows, linux boxes, azure storage, System Centre, Windows Telemetry, ITSM
+Select the Data you want to collect from sources
+Can create Groups of hosts/sources
+Accounts: for RBAC
+Create Alerts
+
+Log Search is a solution.
+
+
+
+## Troubleshooting
+
+Monitor runbooks with the Jobs tab on your AA
+
+Request to start runbook, creates a job (instance) for the runbook, puts it in a queue, a runbook worker gets to it eventually. Either compilation fails then it returns an error, otherwise it enters running state. Does load checking as well, if it runs 3+ hrs then it'll be suspended and put aside. Will also suspend if there's an exception.
+
+Then it is either Stopped before completion, or Completed (without exception).
+
+Workflow runbooks can be suspended, straight Powershell can't be. If yours is gonna run more than 3hrs, you need to redesign with suspending in mind (must be a Workflow then).
+
+Get-AzureRmAutomationJob: get jobs for a given runbook. Can poll this and look for statuses.
+
+
+Logging: powershell scripts have a bunch of typed outputs; Write-Output, -Warning, -Error, -Verbose, -Progress, -Debug. Can't use -Debug in Azure as it's an onscreen popup.
+
+Graphical runbook options: Verbose yes/no, progress yes/no, activity-level tracing none/basic/detailed.
+
+
+### Common failures
+
+Troubleshooting hybrid workers is a little more interesting (on-prem vs. cloud, I think). Needs access to *.cloudapp.net, ports 443/9354/30000-30199, check your proxy and firewall.
+It logs with source of Microsoft-SMA\Operational or Microsoft-Automation\Operational, visible in Event Viewer. Event Viewer should be all you need to look for.
+
+
+Module import fails: often due to dependencies missing, not correctly zipped in folder structure, dependency on another module which isn't imported yet.
+
+Custom DSC resources, don't like any additional files being present.
+
+Cmdlet not recognised: need to import on your hybrid workers, probably can automate
+
+Auth errors: does the runas account have privs to the subscription you're trying to use?
+Credential failure: no special characters allowed in credential name.
+Multi-Factor Auth: cannot be used through Azure
+
+Hitting the Fair Share limits: 3hr limit, can be evicted for hitting the same failure checkpoint three times
+
+Quota reached: applies to free tier, you get 500min free
+
+You can export all diag data
+
+
+### Troubleshooting DSC
+
+Compile failures when converting to MOF, are fairly self-explanatory and errors show up in Azure Automation. Check your usage of credentials in DSC templating.
+
+Error applying MOFs, they're reported back to AA portal
+
+If stuck in In Progress state it's probably to do with WMI or WMF.
+
+DSC logs on Azure VMs, C:\WindowsAzure\Logs\Plugins\Microsoft.Powershell.DSC\<version>
+
+
+
+
+
+==================================================================================================================================
+DAY 3
+==================================================================================================================================
+
+Hybrid runbook workers
+
+A parent runbook can invoke a child runbook on another node, eg. a hybrid worker, using -RunOn, delegating control to another node.
+
+HRW is managed/added via OMS, as a Solution: Automation Hybrid Worker. We install MS Monitoring Agent to get capability to onboard the host to your AA account.
+
+HRW node requirements are fairly modest, Server 2012 or later, Powershell 4.0 or later. Only needs outbound tcp/443 access, to *.azure-automation.net
+
+Once you have HRW nodes/groups, you'll be able to select a hybrid worker group as a runbook target. Recommended to have hybrid nodes redundant, in case there's a problem.
+
+Credentials in your AA account are automagically available on the HRW, but modules not necessarily. Might need to install modules on your HRW manually?
+
+
+
+
+
+PSake DSL for build scripting. It's... kinda a stripped down powershell, but formats like Makefiles.
+
+They have linting and static checking tools
+
+Pester: something like rspec language
+Poshspec: extends Pester for infrastructure deployments
+
+
+
+
+
+Make a Team Services account, new project ContosoScripts, new account bdesmond20171012, 
